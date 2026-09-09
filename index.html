@@ -76,6 +76,9 @@ function onScanSuccess(decodedText, decodedResult) {
 
   console.log("QR:", decodedText);
 }
+if (window.opener) {
+  window.opener.postMessage({ type: "QR_SCANNED", value: decodedText }, "*");
+}
 
 function onScanFailure(error) {
   // 読み取り中のエラーは無視
