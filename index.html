@@ -1,13 +1,22 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
+
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
   <title>QRカメラ</title>
 
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <script
+    src="https://unpkg.com/html5-qrcode"
+    type="text/javascript">
+  </script>
 
   <style>
+
     body {
       font-family: sans-serif;
       text-align: center;
@@ -37,10 +46,11 @@
 
     #result {
       margin-top: 20px;
-      padding: 15px;
+      padding: 20px;
       background: white;
       border-radius: 10px;
-      font-size: 18px;
+      font-size: 20px;
+      font-weight: bold;
       word-break: break-all;
     }
 
@@ -57,153 +67,305 @@
     #start {
       display: inline-block;
     }
+
+    .success {
+      font-size: 26px;
+      font-weight: bold;
+    }
+
   </style>
+
 </head>
+
 
 <body>
 
+
 <h1>📷 QRカメラ</h1>
 
+
 <div id="mode">
-  QRコードを読み取ります
+  ② 商品QRを読み取ってください
 </div>
 
-<button id="start" onclick="startCamera()">
+
+<button
+  id="start"
+  onclick="startCamera()">
+
   📷 カメラを起動
+
 </button>
+
 
 <div id="reader"></div>
 
+
 <div id="result">
+
   「カメラを起動」を押してください
+
 </div>
+
+
 
 <script>
 
+
+/* =====================================
+   基本設定
+===================================== */
+
 let scanner = null;
+
 let scanning = false;
+
 let alreadyScanned = false;
-
-const params = new URLSearchParams(window.location.search);
-
-let mode = params.get("mode") || "product";
 
 let productQR = "";
 
 
-/* ================================
-   表示変更
-================================ */
+const params =
+  new URLSearchParams(window.location.search);
 
-function updateMode() {
 
-  if (mode === "product") {
+let mode =
+  params.get("mode") || "product";
 
-    document.getElementById("mode").innerText =
-      "② 商品QRを読み取ってください";
 
-  } else {
 
-    document.getElementById("mode").innerText =
-      "③ 箱QRを読み取ってください";
+/* =====================================
+   音を鳴らす
+===================================== */
+
+function playSuccessSound() {
+
+  try {
+
+    const AudioContext =
+      window.AudioContext ||
+      window.webkitAudioContext;
+
+    const audioContext =
+      new AudioContext();
+
+
+    const oscillator =
+      audioContext.createOscillator();
+
+    const gainNode =
+      audioContext.createGain();
+
+
+    oscillator.connect(
+      gainNode
+    );
+
+    gainNode.connect(
+      audioContext.destination
+    );
+
+
+    oscillator.type =
+      "sine";
+
+
+    oscillator.frequency.value =
+      1000;
+
+
+    gainNode.gain.value =
+      0.25;
+
+
+    oscillator.start();
+
+
+    oscillator.stop(
+      audioContext.currentTime + 0.15
+    );
+
+
+  } catch (error) {
+
+    console.log(
+      "音を鳴らせませんでした",
+      error
+    );
 
   }
 
 }
 
 
-/* ================================
+
+/* =====================================
+   画面表示
+===================================== */
+
+function updateMode() {
+
+
+  if (mode === "product") {
+
+    document.getElementById("mode")
+      .innerText =
+      "② 商品QRを読み取ってください";
+
+
+  } else {
+
+    document.getElementById("mode")
+      .innerText =
+      "③ 📦 箱QRを読み取ってください";
+
+  }
+
+}
+
+
+
+/* =====================================
    カメラ起動
-================================ */
+===================================== */
 
 async function startCamera() {
 
+
   if (scanning) {
+
     return;
+
   }
+
 
   alreadyScanned = false;
 
-  document.getElementById("result").innerText =
+
+  document.getElementById("result")
+    .innerText =
     "📷 カメラを起動しています…";
 
-  scanner = new Html5Qrcode("reader");
+
+  scanner =
+    new Html5Qrcode("reader");
+
 
   try {
 
+
     await scanner.start(
 
-      { facingMode: "environment" },
+      {
+        facingMode: "environment"
+      },
 
       {
+
         fps: 10,
+
         qrbox: {
           width: 250,
           height: 250
         }
+
       },
 
       onScanSuccess
 
     );
 
+
     scanning = true;
 
-    document.getElementById("start").style.display =
+
+    document.getElementById("start")
+      .style.display =
       "none";
 
-    document.getElementById("result").innerText =
+
+    document.getElementById("result")
+      .innerText =
       "QRコードをカメラに映してください";
+
 
   } catch (error) {
 
+
     console.error(error);
 
-    document.getElementById("result").innerHTML =
+
+    document.getElementById("result")
+      .innerHTML =
+
       "❌ カメラを起動できませんでした<br><br>" +
+
       "Safariのカメラ許可を確認してください";
 
+
     scanner = null;
+
   }
 
 }
 
 
-/* ================================
+
+/* =====================================
    QR読み取り成功
-================================ */
+===================================== */
 
 function onScanSuccess(decodedText) {
 
-  if (!scanning || alreadyScanned) {
+
+  if (
+    !scanning ||
+    alreadyScanned
+  ) {
+
     return;
+
   }
+
 
   alreadyScanned = true;
 
 
-  /* ================================
+
+  /* =================================
      商品QR
   ================================= */
 
   if (mode === "product") {
 
-    productQR = decodedText;
+
+    productQR =
+      decodedText;
 
 
-    /*
-      商品QRをApps Scriptへ送る
-      ※画面は閉じない
-    */
+    /* -------------------------------
+       成功音
+    -------------------------------- */
+
+    playSuccessSound();
+
+
+    /* -------------------------------
+       Apps Scriptへ商品QR送信
+    -------------------------------- */
 
     if (window.opener) {
 
       window.opener.postMessage(
 
         {
+
           type: "QR_SCANNED",
+
           value: decodedText,
+
           mode: "product"
+
         },
 
         "*"
@@ -213,72 +375,117 @@ function onScanSuccess(decodedText) {
     }
 
 
-    document.getElementById("result").innerHTML =
-      "✅ 商品QR読み取り成功<br><br>" +
+    /* -------------------------------
+       画面表示
+    -------------------------------- */
+
+    document.getElementById("result")
+      .innerHTML =
+
+      "<div class='success'>" +
+
+      "🟢 商品読み込み成功！" +
+
+      "</div>" +
+
+      "<br>" +
+
+      "商品QR：" +
+
+      "<br>" +
+
       decodedText +
-      "<br><br>➡️ 箱QRを読み取ってください";
+
+      "<br><br>" +
+
+      "⬇️" +
+
+      "<br><br>" +
+
+      "📦 箱QRを読み取ってください";
 
 
-    /*
-      ここが今回の重要部分
-
-      商品QRを読んでも
-      カメラ画面を閉じない
-
-      そのまま箱QRモードへ変更
-    */
+    /* -------------------------------
+       箱QRモードへ変更
+    -------------------------------- */
 
     mode = "box";
+
 
     updateMode();
 
 
-    /*
-      少し待ってから
-      次のQRを読み取れる状態にする
-    */
+    /* -------------------------------
+       少し待って次のQRを受付
+    -------------------------------- */
 
-    setTimeout(function() {
+    setTimeout(
 
-      alreadyScanned = false;
+      function() {
 
-      document.getElementById("result").innerText =
-        "📦 箱QRをカメラに映してください";
+        alreadyScanned = false;
 
-    }, 500);
+
+        document.getElementById("result")
+          .innerHTML =
+
+          "<div class='success'>" +
+
+          "🟢 商品読み込み成功！" +
+
+          "</div>" +
+
+          "<br>" +
+
+          "📦 箱QRをカメラに映してください";
+
+      },
+
+      800
+
+    );
 
 
     return;
+
   }
 
 
-  /* ================================
+
+  /* =================================
      箱QR
   ================================= */
 
   if (mode === "box") {
 
-    const boxQR = decodedText;
+
+    const boxQR =
+      decodedText;
 
 
-    document.getElementById("result").innerHTML =
-      "✅ 箱QR読み取り成功<br><br>" +
-      boxQR +
-      "<br><br>🟢 登録しました";
+    /* -------------------------------
+       成功音
+    -------------------------------- */
+
+    playSuccessSound();
 
 
-    /*
-      商品＋箱をApps Scriptへ送る
-    */
+    /* -------------------------------
+       Apps Scriptへ箱QR送信
+    -------------------------------- */
 
     if (window.opener) {
 
       window.opener.postMessage(
 
         {
+
           type: "QR_SCANNED",
+
           value: boxQR,
+
           mode: "box"
+
         },
 
         "*"
@@ -288,63 +495,134 @@ function onScanSuccess(decodedText) {
     }
 
 
-    /*
-      箱QRを読んだらカメラ停止
-    */
+    /* -------------------------------
+       画面表示
+    -------------------------------- */
+
+    document.getElementById("result")
+      .innerHTML =
+
+      "<div class='success'>" +
+
+      "🟢 箱読み込み成功！" +
+
+      "</div>" +
+
+      "<br>" +
+
+      "箱QR：" +
+
+      "<br>" +
+
+      boxQR +
+
+      "<br><br>" +
+
+      "💾 自動登録しています…";
+
+
+    /* -------------------------------
+       カメラ停止
+    -------------------------------- */
 
     scanning = false;
 
+
     if (scanner) {
 
-      scanner.stop().then(function() {
 
-        try {
-          scanner.clear();
-        } catch (e) {}
+      scanner.stop()
 
-        scanner = null;
+        .then(
 
-      }).catch(function(error) {
+          function() {
 
-        console.log(error);
 
-        scanner = null;
+            try {
 
-      });
+              scanner.clear();
+
+            } catch (e) {}
+
+
+            scanner = null;
+
+
+          }
+
+        )
+
+        .catch(
+
+          function(error) {
+
+            console.log(error);
+
+            scanner = null;
+
+          }
+
+        );
 
     }
 
 
-    /*
-      少し待って次の商品へ
-    */
 
-    setTimeout(function() {
+    /* -------------------------------
+       次の商品へ
+    -------------------------------- */
 
-      productQR = "";
+    setTimeout(
 
-      mode = "product";
+      function() {
 
-      updateMode();
 
-      document.getElementById("result").innerText =
-        "次の商品QRを読み取ってください";
+        productQR = "";
 
-      document.getElementById("start").style.display =
-        "inline-block";
 
-    }, 1500);
+        mode = "product";
+
+
+        updateMode();
+
+
+        document.getElementById("result")
+          .innerHTML =
+
+          "🟢 登録完了！" +
+
+          "<br><br>" +
+
+          "次の商品QRを読み取ってください";
+
+
+        document.getElementById("start")
+          .style.display =
+          "inline-block";
+
+
+      },
+
+      1500
+
+    );
 
   }
 
 }
 
 
-/* 最初の表示 */
+
+/* =====================================
+   最初の表示
+===================================== */
 
 updateMode();
 
+
 </script>
 
+
 </body>
+
 </html>
