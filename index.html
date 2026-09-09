@@ -20,6 +20,12 @@
       font-size: 24px;
     }
 
+    #mode {
+      font-size: 18px;
+      margin: 15px 0;
+      font-weight: bold;
+    }
+
     #reader {
       width: 100%;
       max-width: 500px;
@@ -39,12 +45,13 @@
     }
 
     button {
-      font-size: 18px;
-      padding: 12px 25px;
+      font-size: 20px;
+      padding: 14px 25px;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       background: #333;
       color: white;
+      margin: 10px;
     }
   </style>
 </head>
@@ -53,17 +60,78 @@
 
 <h1>📷 QRカメラ</h1>
 
+<div id="mode"></div>
+
+<button onclick="startCamera()">📷 カメラを起動</button>
+
 <div id="reader"></div>
 
 <div id="result">
-  QRコードをカメラに映してください
+  「カメラを起動」を押してください
 </div>
 
 <script>
 
+let scanner = null;
 let alreadyScanned = false;
 
-function onScanSuccess(decodedText, decodedResult) {
+const params = new URLSearchParams(window.location.search);
+const mode = params.get("mode");
+
+if (mode === "box") {
+  document.getElementById("mode").innerText = "📦 箱QRを読み取ります";
+} else if (mode === "product") {
+  document.getElementById("mode").innerText = "📦 商品QRを読み取ります";
+} else {
+  document.getElementById("mode").innerText = "QRコードを読み取ります";
+}
+
+async function startCamera() {
+
+  if (scanner !== null) {
+    return;
+  }
+
+  alreadyScanned = false;
+
+  document.getElementById("result").innerText =
+    "📷 カメラを起動しています…";
+
+  scanner = new Html5Qrcode("reader");
+
+  try {
+
+    await scanner.start(
+      { facingMode: "environment" },
+
+      {
+        fps: 10,
+        qrbox: {
+          width: 250,
+          height: 250
+        }
+      },
+
+      onScanSuccess
+
+    );
+
+    document.getElementById("result").innerText =
+      "QRコードをカメラに映してください";
+
+  } catch (error) {
+
+    console.error(error);
+
+    document.getElementById("result").innerHTML =
+      "❌ カメラを起動できませんでした<br><br>" +
+      "Safariのカメラ許可を確認してください";
+
+    scanner = null;
+  }
+}
+
+async function onScanSuccess(decodedText) {
 
   if (alreadyScanned) {
     return;
@@ -74,29 +142,34 @@ function onScanSuccess(decodedText, decodedResult) {
   document.getElementById("result").innerHTML =
     "✅ 読み取り成功<br><br>" + decodedText;
 
-  console.log("QR:", decodedText);
-}
-if (window.opener) {
-  window.opener.postMessage({ type: "QR_SCANNED", value: decodedText }, "*");
-}
-
-function onScanFailure(error) {
-  // 読み取り中のエラーは無視
-}
-
-const scanner = new Html5QrcodeScanner(
-  "reader",
-  {
-    fps: 10,
-    qrbox: {
-      width: 250,
-      height: 250
+  if (scanner) {
+    try {
+      await scanner.stop();
+    } catch (e) {
+      console.log(e);
     }
-  },
-  false
-);
+  }
 
-scanner.render(onScanSuccess, onScanFailure);
+  if (window.opener) {
+
+    window.opener.postMessage(
+      {
+        type: "QR_SCANNED",
+        value: decodedText,
+        mode: mode
+      },
+      "*"
+    );
+
+    document.getElementById("result").innerHTML +=
+      "<br><br>✅ 前の画面へ読み取り結果を送りました";
+      
+  } else {
+
+    document.getElementById("result").innerHTML +=
+      "<br><br>⚠️ 前の画面が見つかりません";
+  }
+}
 
 </script>
 
