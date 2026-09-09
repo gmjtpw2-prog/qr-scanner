@@ -22,8 +22,8 @@
 
     #mode {
       font-size: 18px;
-      margin: 15px 0;
       font-weight: bold;
+      margin: 15px 0;
     }
 
     #reader {
@@ -53,6 +53,10 @@
       color: white;
       margin: 10px;
     }
+
+    #again {
+      display: none;
+    }
   </style>
 </head>
 
@@ -62,7 +66,9 @@
 
 <div id="mode"></div>
 
-<button onclick="startCamera()">📷 カメラを起動</button>
+<button id="start" onclick="startCamera()">
+  📷 カメラを起動
+</button>
 
 <div id="reader"></div>
 
@@ -70,29 +76,39 @@
   「カメラを起動」を押してください
 </div>
 
+<button id="again" onclick="restartCamera()">
+  📷 次のQRを読み取る
+</button>
+
 <script>
 
 let scanner = null;
-let alreadyScanned = false;
+let scanning = false;
 
 const params = new URLSearchParams(window.location.search);
 const mode = params.get("mode");
 
 if (mode === "box") {
-  document.getElementById("mode").innerText = "📦 箱QRを読み取ります";
+  document.getElementById("mode").innerText =
+    "📦 箱QRを読み取ります";
 } else if (mode === "product") {
-  document.getElementById("mode").innerText = "📦 商品QRを読み取ります";
+  document.getElementById("mode").innerText =
+    "📦 商品QRを読み取ります";
 } else {
-  document.getElementById("mode").innerText = "QRコードを読み取ります";
+  document.getElementById("mode").innerText =
+    "QRコードを読み取ります";
 }
+
+
+/* カメラ開始 */
 
 async function startCamera() {
 
-  if (scanner !== null) {
+  if (scanning) {
     return;
   }
 
-  alreadyScanned = false;
+  document.getElementById("again").style.display = "none";
 
   document.getElementById("result").innerText =
     "📷 カメラを起動しています…";
@@ -116,6 +132,8 @@ async function startCamera() {
 
     );
 
+    scanning = true;
+
     document.getElementById("result").innerText =
       "QRコードをカメラに映してください";
 
@@ -131,24 +149,43 @@ async function startCamera() {
   }
 }
 
+
+/* QR読み取り成功 */
+
 async function onScanSuccess(decodedText) {
 
-  if (alreadyScanned) {
+  if (!scanning) {
     return;
   }
 
-  alreadyScanned = true;
+  scanning = false;
 
   document.getElementById("result").innerHTML =
-    "✅ 読み取り成功<br><br>" + decodedText;
+    "✅ 読み取り成功<br><br>" +
+    decodedText;
+
+
+  /* カメラ停止 */
 
   if (scanner) {
+
     try {
       await scanner.stop();
     } catch (e) {
       console.log(e);
     }
+
+    try {
+      scanner.clear();
+    } catch (e) {
+      console.log(e);
+    }
+
+    scanner = null;
   }
+
+
+  /* 元の画面へ送信 */
 
   if (window.opener) {
 
@@ -162,13 +199,37 @@ async function onScanSuccess(decodedText) {
     );
 
     document.getElementById("result").innerHTML +=
-      "<br><br>✅ 前の画面へ読み取り結果を送りました";
-      
+      "<br><br>✅ 読み取り結果を送りました";
+
   } else {
 
     document.getElementById("result").innerHTML +=
-      "<br><br>⚠️ 前の画面が見つかりません";
+      "<br><br>⚠️ 元の画面が見つかりません";
+
   }
+
+
+  /* 次のQRボタンを表示 */
+
+  document.getElementById("again").style.display =
+    "inline-block";
+}
+
+
+/* 次のQR */
+
+function restartCamera() {
+
+  document.getElementById("reader").innerHTML = "";
+
+  document.getElementById("result").innerText =
+    "📷 カメラを起動してください";
+
+  document.getElementById("again").style.display =
+    "none";
+
+  startCamera();
+
 }
 
 </script>
