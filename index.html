@@ -21,9 +21,9 @@
     }
 
     #mode {
-      font-size: 20px;
+      font-size: 22px;
       font-weight: bold;
-      margin: 15px 0;
+      margin: 20px 0;
     }
 
     #reader {
@@ -54,8 +54,8 @@
       margin: 10px;
     }
 
-    #again {
-      display: none;
+    #start {
+      display: inline-block;
     }
   </style>
 </head>
@@ -64,7 +64,9 @@
 
 <h1>📷 QRカメラ</h1>
 
-<div id="mode"></div>
+<div id="mode">
+  QRコードを読み取ります
+</div>
 
 <button id="start" onclick="startCamera()">
   📷 カメラを起動
@@ -76,41 +78,43 @@
   「カメラを起動」を押してください
 </div>
 
-<button id="again" onclick="restartCamera()">
-  📷 次のQRを読み取る
-</button>
-
 <script>
 
 let scanner = null;
 let scanning = false;
+let alreadyScanned = false;
 
 const params = new URLSearchParams(window.location.search);
-let mode = params.get("mode");
+
+let mode = params.get("mode") || "product";
+
+let productQR = "";
 
 
-/* 最初の表示 */
+/* ================================
+   表示変更
+================================ */
 
 function updateMode() {
 
-  if (mode === "box") {
+  if (mode === "product") {
 
     document.getElementById("mode").innerText =
-      "📦 箱QRを読み取ります";
+      "② 商品QRを読み取ってください";
 
   } else {
 
     document.getElementById("mode").innerText =
-      "📦 商品QRを読み取ります";
+      "③ 箱QRを読み取ってください";
 
   }
 
 }
 
-updateMode();
 
-
-/* カメラ開始 */
+/* ================================
+   カメラ起動
+================================ */
 
 async function startCamera() {
 
@@ -118,7 +122,7 @@ async function startCamera() {
     return;
   }
 
-  document.getElementById("again").style.display = "none";
+  alreadyScanned = false;
 
   document.getElementById("result").innerText =
     "📷 カメラを起動しています…";
@@ -145,6 +149,9 @@ async function startCamera() {
 
     scanning = true;
 
+    document.getElementById("start").style.display =
+      "none";
+
     document.getElementById("result").innerText =
       "QRコードをカメラに映してください";
 
@@ -162,106 +169,180 @@ async function startCamera() {
 }
 
 
-/* QR読み取り成功 */
+/* ================================
+   QR読み取り成功
+================================ */
 
-async function onScanSuccess(decodedText) {
+function onScanSuccess(decodedText) {
 
-  if (!scanning) {
+  if (!scanning || alreadyScanned) {
     return;
   }
 
-  scanning = false;
-
-  document.getElementById("result").innerHTML =
-    "✅ 読み取り成功<br><br>" +
-    decodedText;
+  alreadyScanned = true;
 
 
-  /* カメラ停止 */
+  /* ================================
+     商品QR
+  ================================= */
 
-  if (scanner) {
+  if (mode === "product") {
 
-    try {
-      await scanner.stop();
-    } catch (e) {
-      console.log(e);
+    productQR = decodedText;
+
+
+    /*
+      商品QRをApps Scriptへ送る
+      ※画面は閉じない
+    */
+
+    if (window.opener) {
+
+      window.opener.postMessage(
+
+        {
+          type: "QR_SCANNED",
+          value: decodedText,
+          mode: "product"
+        },
+
+        "*"
+
+      );
+
     }
 
-    try {
-      scanner.clear();
-    } catch (e) {
-      console.log(e);
-    }
 
-    scanner = null;
-  }
+    document.getElementById("result").innerHTML =
+      "✅ 商品QR読み取り成功<br><br>" +
+      decodedText +
+      "<br><br>➡️ 箱QRを読み取ってください";
 
 
-  /* 元のApps Script画面へ送る */
+    /*
+      ここが今回の重要部分
 
-  if (window.opener) {
+      商品QRを読んでも
+      カメラ画面を閉じない
 
-    window.opener.postMessage(
+      そのまま箱QRモードへ変更
+    */
 
-      {
-        type: "QR_SCANNED",
-        value: decodedText,
-        mode: mode
-      },
-
-      "*"
-
-    );
-
-    document.getElementById("result").innerHTML +=
-      "<br><br>✅ 読み取り結果を送りました";
-
-  }
-
-
-  /*
-    箱QRを読んだ場合
-    ↓
-    自動的に商品QRモードへ変更
-  */
-
-  if (mode === "box") {
-
-    mode = "product";
+    mode = "box";
 
     updateMode();
 
-    document.getElementById("result").innerHTML +=
-      "<br><br>➡️ 商品QRを読み取る準備ができました";
 
-    document.getElementById("again").style.display =
-      "inline-block";
+    /*
+      少し待ってから
+      次のQRを読み取れる状態にする
+    */
 
-  } else {
+    setTimeout(function() {
 
-    document.getElementById("again").style.display =
-      "inline-block";
+      alreadyScanned = false;
+
+      document.getElementById("result").innerText =
+        "📦 箱QRをカメラに映してください";
+
+    }, 500);
+
+
+    return;
+  }
+
+
+  /* ================================
+     箱QR
+  ================================= */
+
+  if (mode === "box") {
+
+    const boxQR = decodedText;
+
+
+    document.getElementById("result").innerHTML =
+      "✅ 箱QR読み取り成功<br><br>" +
+      boxQR +
+      "<br><br>🟢 登録しました";
+
+
+    /*
+      商品＋箱をApps Scriptへ送る
+    */
+
+    if (window.opener) {
+
+      window.opener.postMessage(
+
+        {
+          type: "QR_SCANNED",
+          value: boxQR,
+          mode: "box"
+        },
+
+        "*"
+
+      );
+
+    }
+
+
+    /*
+      箱QRを読んだらカメラ停止
+    */
+
+    scanning = false;
+
+    if (scanner) {
+
+      scanner.stop().then(function() {
+
+        try {
+          scanner.clear();
+        } catch (e) {}
+
+        scanner = null;
+
+      }).catch(function(error) {
+
+        console.log(error);
+
+        scanner = null;
+
+      });
+
+    }
+
+
+    /*
+      少し待って次の商品へ
+    */
+
+    setTimeout(function() {
+
+      productQR = "";
+
+      mode = "product";
+
+      updateMode();
+
+      document.getElementById("result").innerText =
+        "次の商品QRを読み取ってください";
+
+      document.getElementById("start").style.display =
+        "inline-block";
+
+    }, 1500);
 
   }
 
 }
 
 
-/* 次のQR */
+/* 最初の表示 */
 
-function restartCamera() {
-
-  document.getElementById("reader").innerHTML = "";
-
-  document.getElementById("result").innerText =
-    "📷 カメラを起動してください";
-
-  document.getElementById("again").style.display =
-    "none";
-
-  startCamera();
-
-}
+updateMode();
 
 </script>
 
