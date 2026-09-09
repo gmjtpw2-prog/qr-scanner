@@ -21,7 +21,7 @@
     }
 
     #mode {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: bold;
       margin: 15px 0;
     }
@@ -86,18 +86,28 @@ let scanner = null;
 let scanning = false;
 
 const params = new URLSearchParams(window.location.search);
-const mode = params.get("mode");
+let mode = params.get("mode");
 
-if (mode === "box") {
-  document.getElementById("mode").innerText =
-    "📦 箱QRを読み取ります";
-} else if (mode === "product") {
-  document.getElementById("mode").innerText =
-    "📦 商品QRを読み取ります";
-} else {
-  document.getElementById("mode").innerText =
-    "QRコードを読み取ります";
+
+/* 最初の表示 */
+
+function updateMode() {
+
+  if (mode === "box") {
+
+    document.getElementById("mode").innerText =
+      "📦 箱QRを読み取ります";
+
+  } else {
+
+    document.getElementById("mode").innerText =
+      "📦 商品QRを読み取ります";
+
+  }
+
 }
+
+updateMode();
 
 
 /* カメラ開始 */
@@ -118,6 +128,7 @@ async function startCamera() {
   try {
 
     await scanner.start(
+
       { facingMode: "environment" },
 
       {
@@ -147,6 +158,7 @@ async function startCamera() {
 
     scanner = null;
   }
+
 }
 
 
@@ -185,34 +197,53 @@ async function onScanSuccess(decodedText) {
   }
 
 
-  /* 元の画面へ送信 */
+  /* 元のApps Script画面へ送る */
 
   if (window.opener) {
 
     window.opener.postMessage(
+
       {
         type: "QR_SCANNED",
         value: decodedText,
         mode: mode
       },
+
       "*"
+
     );
 
     document.getElementById("result").innerHTML +=
       "<br><br>✅ 読み取り結果を送りました";
 
-  } else {
-
-    document.getElementById("result").innerHTML +=
-      "<br><br>⚠️ 元の画面が見つかりません";
-
   }
 
 
-  /* 次のQRボタンを表示 */
+  /*
+    箱QRを読んだ場合
+    ↓
+    自動的に商品QRモードへ変更
+  */
 
-  document.getElementById("again").style.display =
-    "inline-block";
+  if (mode === "box") {
+
+    mode = "product";
+
+    updateMode();
+
+    document.getElementById("result").innerHTML +=
+      "<br><br>➡️ 商品QRを読み取る準備ができました";
+
+    document.getElementById("again").style.display =
+      "inline-block";
+
+  } else {
+
+    document.getElementById("again").style.display =
+      "inline-block";
+
+  }
+
 }
 
 
