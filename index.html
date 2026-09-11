@@ -3,118 +3,112 @@
 
 <head>
 
-  <meta charset="UTF-8">
+<meta charset="UTF-8">
 
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
 
-  <title>QRカメラ</title>
+<title>QRカメラ</title>
 
-  <script
-    src="https://unpkg.com/html5-qrcode"
-    type="text/javascript">
-  </script>
+<script
+src="https://unpkg.com/html5-qrcode"
+type="text/javascript">
+</script>
 
-  <style>
+<style>
 
-    body {
-      font-family: sans-serif;
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-      background: #f5f5f5;
-    }
+body {
+  font-family: sans-serif;
+  text-align: center;
+  margin: 0;
+  padding: 20px;
+  background: #f5f5f5;
+}
 
-    h1 {
-      font-size: 24px;
-    }
+h1 {
+  font-size: 24px;
+}
 
-    #mode {
-      font-size: 22px;
-      font-weight: bold;
-      margin: 20px 0;
-    }
+#mode {
+  font-size: 22px;
+  font-weight: bold;
+  margin: 20px 0;
+}
 
-    #reader {
-      width: 100%;
-      max-width: 500px;
-      margin: 20px auto;
-      background: white;
-      border-radius: 10px;
-      overflow: hidden;
-    }
+#reader {
+  width: 100%;
+  max-width: 500px;
+  margin: 20px auto;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+}
 
-    #result {
-      margin-top: 20px;
-      padding: 20px;
-      background: white;
-      border-radius: 10px;
-      font-size: 20px;
-      font-weight: bold;
-      word-break: break-all;
-    }
+#result {
+  margin-top: 20px;
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  font-size: 20px;
+  font-weight: bold;
+  word-break: break-all;
+}
 
-    button {
-      font-size: 20px;
-      padding: 14px 25px;
-      border: none;
-      border-radius: 10px;
-      background: #333;
-      color: white;
-      margin: 10px;
-    }
+button {
+  font-size: 20px;
+  padding: 14px 25px;
+  border: none;
+  border-radius: 10px;
+  background: #333;
+  color: white;
+  margin: 10px;
+}
 
-    #start {
-      display: inline-block;
-    }
+#start {
+  display: inline-block;
+}
 
-    .success {
-      font-size: 26px;
-      font-weight: bold;
-    }
+.success {
+  font-size: 26px;
+  font-weight: bold;
+}
 
-  </style>
+</style>
 
 </head>
 
 
 <body>
 
-
 <h1>📷 QRカメラ</h1>
 
-
 <div id="mode">
-  ② 商品QRを読み取ってください
+  QRコードを読み取ります
 </div>
 
-
 <button
-  id="start"
-  onclick="startCamera()">
+id="start"
+onclick="startCamera()">
 
-  📷 カメラを起動
+📷 カメラを起動
 
 </button>
 
-
 <div id="reader"></div>
-
 
 <div id="result">
 
-  「カメラを起動」を押してください
+「カメラを起動」を押してください
 
 </div>
-
 
 
 <script>
 
 
-/* =====================================
+/* =================================
    基本設定
-===================================== */
+================================= */
 
 let scanner = null;
 
@@ -124,21 +118,23 @@ let alreadyScanned = false;
 
 let productQR = "";
 
+let audioContext = null;
+
 
 const params =
-  new URLSearchParams(window.location.search);
+new URLSearchParams(window.location.search);
 
 
 let mode =
-  params.get("mode") || "product";
+params.get("mode") || "product";
 
 
 
-/* =====================================
-   音を鳴らす
-===================================== */
+/* =================================
+   成功音を準備
+================================= */
 
-function playSuccessSound() {
+function prepareSound() {
 
   try {
 
@@ -146,45 +142,83 @@ function playSuccessSound() {
       window.AudioContext ||
       window.webkitAudioContext;
 
-    const audioContext =
-      new AudioContext();
+    if (!audioContext) {
+
+      audioContext =
+        new AudioContext();
+
+    }
+
+    if (
+      audioContext.state === "suspended"
+    ) {
+
+      audioContext.resume();
+
+    }
+
+  } catch (error) {
+
+    console.log(error);
+
+  }
+
+}
+
+
+
+/* =================================
+   成功音
+================================= */
+
+function playSuccessSound() {
+
+  try {
+
+    prepareSound();
+
+    if (!audioContext) {
+      return;
+    }
 
 
     const oscillator =
       audioContext.createOscillator();
 
-    const gainNode =
+    const gain =
       audioContext.createGain();
 
 
-    oscillator.connect(
-      gainNode
-    );
+    oscillator.connect(gain);
 
-    gainNode.connect(
+    gain.connect(
       audioContext.destination
     );
 
 
-    oscillator.type =
-      "sine";
-
+    oscillator.type = "sine";
 
     oscillator.frequency.value =
       1000;
 
 
-    gainNode.gain.value =
-      0.25;
+    gain.gain.setValueAtTime(
+      0.25,
+      audioContext.currentTime
+    );
+
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.01,
+      audioContext.currentTime + 0.2
+    );
 
 
     oscillator.start();
 
-
     oscillator.stop(
-      audioContext.currentTime + 0.15
+      audioContext.currentTime + 0.2
     );
-
 
   } catch (error) {
 
@@ -199,9 +233,9 @@ function playSuccessSound() {
 
 
 
-/* =====================================
-   画面表示
-===================================== */
+/* =================================
+   モード表示
+================================= */
 
 function updateMode() {
 
@@ -212,8 +246,10 @@ function updateMode() {
       .innerText =
       "② 商品QRを読み取ってください";
 
+  }
 
-  } else {
+
+  else if (mode === "box") {
 
     document.getElementById("mode")
       .innerText =
@@ -221,22 +257,43 @@ function updateMode() {
 
   }
 
+
+  else if (mode === "bulkBox") {
+
+    document.getElementById("mode")
+      .innerText =
+      "📦 箱QRを読み取ってください";
+
+  }
+
+
+  else if (mode === "bulkProduct") {
+
+    document.getElementById("mode")
+      .innerText =
+      "📷 商品QRを読み取ってください";
+
+  }
+
 }
 
 
 
-/* =====================================
+/* =================================
    カメラ起動
-===================================== */
+================================= */
 
 async function startCamera() {
 
 
   if (scanning) {
-
     return;
-
   }
+
+
+  /* iPhoneの音声許可を準備 */
+
+  prepareSound();
 
 
   alreadyScanned = false;
@@ -289,7 +346,10 @@ async function startCamera() {
       "QRコードをカメラに映してください";
 
 
-  } catch (error) {
+  }
+
+
+  catch (error) {
 
 
     console.error(error);
@@ -311,9 +371,9 @@ async function startCamera() {
 
 
 
-/* =====================================
-   QR読み取り成功
-===================================== */
+/* =================================
+   QR読み取り
+================================= */
 
 function onScanSuccess(decodedText) {
 
@@ -333,7 +393,7 @@ function onScanSuccess(decodedText) {
 
 
   /* =================================
-     商品QR
+     ① 通常の1個入れ：商品
   ================================= */
 
   if (mode === "product") {
@@ -343,106 +403,65 @@ function onScanSuccess(decodedText) {
       decodedText;
 
 
-    /* -------------------------------
-       成功音
-    -------------------------------- */
+    /* 音 */
 
     playSuccessSound();
 
 
-    /* -------------------------------
-       Apps Scriptへ商品QR送信
-    -------------------------------- */
+    /* Apps Scriptへ送信 */
 
-    if (window.opener) {
-
-      window.opener.postMessage(
-
-        {
-
-          type: "QR_SCANNED",
-
-          value: decodedText,
-
-          mode: "product"
-
-        },
-
-        "*"
-
-      );
-
-    }
+    sendToParent(
+      decodedText,
+      "product"
+    );
 
 
-    /* -------------------------------
-       画面表示
-    -------------------------------- */
+    /* 表示 */
 
     document.getElementById("result")
       .innerHTML =
 
       "<div class='success'>" +
-
       "🟢 商品読み込み成功！" +
-
       "</div>" +
 
       "<br>" +
 
       "商品QR：" +
-
       "<br>" +
 
       decodedText +
 
       "<br><br>" +
 
-      "⬇️" +
-
-      "<br><br>" +
-
       "📦 箱QRを読み取ってください";
 
 
-    /* -------------------------------
-       箱QRモードへ変更
-    -------------------------------- */
+    /* 箱モードへ */
 
     mode = "box";
-
 
     updateMode();
 
 
-    /* -------------------------------
-       少し待って次のQRを受付
-    -------------------------------- */
-
     setTimeout(
-
       function() {
 
         alreadyScanned = false;
-
 
         document.getElementById("result")
           .innerHTML =
 
           "<div class='success'>" +
-
           "🟢 商品読み込み成功！" +
-
           "</div>" +
 
-          "<br>" +
+          "<br><br>" +
 
           "📦 箱QRをカメラに映してください";
 
       },
-
-      800
-
+      700
     );
 
 
@@ -453,7 +472,7 @@ function onScanSuccess(decodedText) {
 
 
   /* =================================
-     箱QR
+     ② 通常の1個入れ：箱
   ================================= */
 
   if (mode === "box") {
@@ -463,55 +482,25 @@ function onScanSuccess(decodedText) {
       decodedText;
 
 
-    /* -------------------------------
-       成功音
-    -------------------------------- */
-
     playSuccessSound();
 
 
-    /* -------------------------------
-       Apps Scriptへ箱QR送信
-    -------------------------------- */
+    sendToParent(
+      boxQR,
+      "box"
+    );
 
-    if (window.opener) {
-
-      window.opener.postMessage(
-
-        {
-
-          type: "QR_SCANNED",
-
-          value: boxQR,
-
-          mode: "box"
-
-        },
-
-        "*"
-
-      );
-
-    }
-
-
-    /* -------------------------------
-       画面表示
-    -------------------------------- */
 
     document.getElementById("result")
       .innerHTML =
 
       "<div class='success'>" +
-
       "🟢 箱読み込み成功！" +
-
       "</div>" +
 
       "<br>" +
 
       "箱QR：" +
-
       "<br>" +
 
       boxQR +
@@ -521,67 +510,15 @@ function onScanSuccess(decodedText) {
       "💾 自動登録しています…";
 
 
-    /* -------------------------------
-       カメラ停止
-    -------------------------------- */
+    stopCamera();
 
-    scanning = false;
-
-
-    if (scanner) {
-
-
-      scanner.stop()
-
-        .then(
-
-          function() {
-
-
-            try {
-
-              scanner.clear();
-
-            } catch (e) {}
-
-
-            scanner = null;
-
-
-          }
-
-        )
-
-        .catch(
-
-          function(error) {
-
-            console.log(error);
-
-            scanner = null;
-
-          }
-
-        );
-
-    }
-
-
-
-    /* -------------------------------
-       次の商品へ
-    -------------------------------- */
 
     setTimeout(
-
       function() {
-
 
         productQR = "";
 
-
         mode = "product";
-
 
         updateMode();
 
@@ -600,10 +537,178 @@ function onScanSuccess(decodedText) {
           .style.display =
           "inline-block";
 
+      },
+      1500
+    );
+
+
+    return;
+
+  }
+
+
+
+  /* =================================
+     ③ 一括入れ：箱
+  ================================= */
+
+  if (mode === "bulkBox") {
+
+
+    playSuccessSound();
+
+
+    sendToParent(
+      decodedText,
+      "bulkBox"
+    );
+
+
+    document.getElementById("result")
+      .innerHTML =
+
+      "<div class='success'>" +
+      "🟢 箱読み込み成功！" +
+      "</div>" +
+
+      "<br>" +
+
+      decodedText +
+
+      "<br><br>" +
+
+      "📷 商品QRを読み取ってください";
+
+
+    stopCamera();
+
+
+    setTimeout(
+      function() {
+
+        mode = "bulkProduct";
+
+        updateMode();
+
+
+        document.getElementById("result")
+          .innerHTML =
+
+          "🟢 箱読み込み成功！" +
+
+          "<br><br>" +
+
+          "📷 商品QRを読み取ってください";
+
+
+        document.getElementById("start")
+          .style.display =
+          "inline-block";
+
+      },
+      1000
+    );
+
+
+    return;
+
+  }
+
+
+
+  /* =================================
+     ④ 一括入れ：商品
+  ================================= */
+
+  if (mode === "bulkProduct") {
+
+
+    playSuccessSound();
+
+
+    sendToParent(
+      decodedText,
+      "bulkProduct"
+    );
+
+
+    document.getElementById("result")
+      .innerHTML =
+
+      "<div class='success'>" +
+      "🟢 商品読み込み成功！" +
+      "</div>" +
+
+      "<br>" +
+
+      decodedText +
+
+      "<br><br>" +
+
+      "📷 次の商品QRを読み取ってください";
+
+
+    stopCamera();
+
+
+    setTimeout(
+      function() {
+
+        document.getElementById("result")
+          .innerHTML =
+
+          "🟢 商品読み込み成功！" +
+
+          "<br><br>" +
+
+          "📷 次の商品QRを読み取ってください";
+
+
+        document.getElementById("start")
+          .style.display =
+          "inline-block";
+
+      },
+      800
+    );
+
+
+    return;
+
+  }
+
+}
+
+
+
+/* =================================
+   Apps Scriptへ送信
+================================= */
+
+function sendToParent(
+  value,
+  mode
+) {
+
+
+  if (
+    window.opener
+  ) {
+
+
+    window.opener.postMessage(
+
+      {
+
+        type: "QR_SCANNED",
+
+        value: value,
+
+        mode: mode
 
       },
 
-      1500
+      "*"
 
     );
 
@@ -613,15 +718,61 @@ function onScanSuccess(decodedText) {
 
 
 
-/* =====================================
-   最初の表示
-===================================== */
+/* =================================
+   カメラ停止
+================================= */
+
+function stopCamera() {
+
+
+  scanning = false;
+
+
+  if (scanner) {
+
+
+    scanner.stop()
+
+      .then(
+        function() {
+
+          try {
+
+            scanner.clear();
+
+          }
+          catch (e) {}
+
+
+          scanner = null;
+
+        }
+      )
+
+      .catch(
+        function(error) {
+
+          console.log(error);
+
+          scanner = null;
+
+        }
+      );
+
+  }
+
+}
+
+
+
+/* =================================
+   初期表示
+================================= */
 
 updateMode();
 
 
 </script>
-
 
 </body>
 
