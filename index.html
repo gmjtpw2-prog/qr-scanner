@@ -86,7 +86,6 @@ button {
 
 <h1>📷 QRカメラ</h1>
 
-
 <div id="mode">
   QRコードを読み取ります
 </div>
@@ -477,6 +476,14 @@ function onScanSuccess(decodedText) {
     updateMode();
 
 
+    /*
+
+      カメラは止めない
+
+      そのまま箱QRを読む
+
+    */
+
     setTimeout(
 
       function() {
@@ -551,6 +558,13 @@ function onScanSuccess(decodedText) {
       "💾 自動登録しています…";
 
 
+    /*
+
+      登録処理中だけ
+      一度カメラを停止
+
+    */
+
     stopCamera();
 
 
@@ -575,12 +589,17 @@ function onScanSuccess(decodedText) {
 
           "<br><br>" +
 
-          "次の商品QRを読み取ってください";
+          "📷 次の商品QRを読み取ってください";
 
 
-        document.getElementById("start")
-          .style.display =
-          "inline-block";
+        /*
+
+          次の商品用カメラを
+          自動起動
+
+        */
+
+        startCamera(false);
 
 
       },
@@ -648,21 +667,30 @@ function onScanSuccess(decodedText) {
         document.getElementById("result")
           .innerHTML =
 
+          "<div class='success'>" +
+
           "🟢 箱読み込み成功！" +
+
+          "</div>" +
 
           "<br><br>" +
 
           "📷 商品QRを読み取ってください";
 
 
-        document.getElementById("start")
-          .style.display =
-          "inline-block";
+        /*
+
+          商品QRカメラを
+          自動起動
+
+        */
+
+        startCamera(false);
 
 
       },
 
-      800
+      1000
 
     );
 
@@ -708,16 +736,19 @@ function onScanSuccess(decodedText) {
 
 
     /*
-      一括入れでは
-      カメラを停止しない
 
-      そのまま次の商品を
-      読み取れる
+      一括入れでは
+      カメラを止めない
+
+      そのまま次の商品QRを
+      読み取る
+
     */
 
     setTimeout(
 
       function() {
+
 
         alreadyScanned = false;
 
@@ -730,6 +761,7 @@ function onScanSuccess(decodedText) {
           "<br><br>" +
 
           "📷 次の商品QRを読み取ってください";
+
 
       },
 
@@ -842,11 +874,10 @@ updateMode();
 
 
 /*
-  ページを開いたら
-  自動的にカメラ起動を試す
 
-  iPhone Safariが許可すれば
-  ボタンを押す必要なし
+  ページを開いたら
+  自動的にカメラ起動
+
 */
 
 setTimeout(
