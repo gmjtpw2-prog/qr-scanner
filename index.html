@@ -65,12 +65,16 @@ button {
 }
 
 #start {
-  display: inline-block;
+  display: none;
 }
 
 .success {
   font-size: 26px;
   font-weight: bold;
+}
+
+.error {
+  color: #d00;
 }
 
 </style>
@@ -82,25 +86,30 @@ button {
 
 <h1>📷 QRカメラ</h1>
 
+
 <div id="mode">
   QRコードを読み取ります
 </div>
 
+
 <button
 id="start"
-onclick="startCamera()">
+onclick="startCamera(true)">
 
 📷 カメラを起動
 
 </button>
 
+
 <div id="reader"></div>
+
 
 <div id="result">
 
-「カメラを起動」を押してください
+📷 カメラを起動しています…
 
 </div>
+
 
 
 <script>
@@ -122,7 +131,9 @@ let audioContext = null;
 
 
 const params =
-new URLSearchParams(window.location.search);
+new URLSearchParams(
+  window.location.search
+);
 
 
 let mode =
@@ -131,7 +142,7 @@ params.get("mode") || "product";
 
 
 /* =================================
-   成功音を準備
+   音の準備
 ================================= */
 
 function prepareSound() {
@@ -142,12 +153,19 @@ function prepareSound() {
       window.AudioContext ||
       window.webkitAudioContext;
 
+
+    if (!AudioContext) {
+      return;
+    }
+
+
     if (!audioContext) {
 
       audioContext =
         new AudioContext();
 
     }
+
 
     if (
       audioContext.state === "suspended"
@@ -157,7 +175,9 @@ function prepareSound() {
 
     }
 
-  } catch (error) {
+  }
+
+  catch (error) {
 
     console.log(error);
 
@@ -177,6 +197,7 @@ function playSuccessSound() {
 
     prepareSound();
 
+
     if (!audioContext) {
       return;
     }
@@ -184,6 +205,7 @@ function playSuccessSound() {
 
     const oscillator =
       audioContext.createOscillator();
+
 
     const gain =
       audioContext.createGain();
@@ -196,7 +218,9 @@ function playSuccessSound() {
     );
 
 
-    oscillator.type = "sine";
+    oscillator.type =
+      "sine";
+
 
     oscillator.frequency.value =
       1000;
@@ -216,16 +240,16 @@ function playSuccessSound() {
 
     oscillator.start();
 
+
     oscillator.stop(
       audioContext.currentTime + 0.2
     );
 
-  } catch (error) {
+  }
 
-    console.log(
-      "音を鳴らせませんでした",
-      error
-    );
+  catch (error) {
+
+    console.log(error);
 
   }
 
@@ -283,7 +307,7 @@ function updateMode() {
    カメラ起動
 ================================= */
 
-async function startCamera() {
+async function startCamera(userAction = false) {
 
 
   if (scanning) {
@@ -291,9 +315,11 @@ async function startCamera() {
   }
 
 
-  /* iPhoneの音声許可を準備 */
+  if (userAction) {
 
-  prepareSound();
+    prepareSound();
+
+  }
 
 
   alreadyScanned = false;
@@ -302,6 +328,11 @@ async function startCamera() {
   document.getElementById("result")
     .innerText =
     "📷 カメラを起動しています…";
+
+
+  document.getElementById("start")
+    .style.display =
+    "none";
 
 
   scanner =
@@ -336,11 +367,6 @@ async function startCamera() {
     scanning = true;
 
 
-    document.getElementById("start")
-      .style.display =
-      "none";
-
-
     document.getElementById("result")
       .innerText =
       "QRコードをカメラに映してください";
@@ -355,15 +381,26 @@ async function startCamera() {
     console.error(error);
 
 
+    scanner = null;
+
+
     document.getElementById("result")
       .innerHTML =
 
-      "❌ カメラを起動できませんでした<br><br>" +
+      "<div class='error'>" +
 
-      "Safariのカメラ許可を確認してください";
+      "❌ カメラを自動起動できませんでした" +
+
+      "</div>" +
+
+      "<br>" +
+
+      "下の「カメラを起動」を押してください";
 
 
-    scanner = null;
+    document.getElementById("start")
+      .style.display =
+      "inline-block";
 
   }
 
@@ -372,7 +409,7 @@ async function startCamera() {
 
 
 /* =================================
-   QR読み取り
+   QR読み取り成功
 ================================= */
 
 function onScanSuccess(decodedText) {
@@ -393,7 +430,7 @@ function onScanSuccess(decodedText) {
 
 
   /* =================================
-     ① 通常の1個入れ：商品
+     ① 1個入れ：商品
   ================================= */
 
   if (mode === "product") {
@@ -403,12 +440,8 @@ function onScanSuccess(decodedText) {
       decodedText;
 
 
-    /* 音 */
-
     playSuccessSound();
 
-
-    /* Apps Scriptへ送信 */
 
     sendToParent(
       decodedText,
@@ -416,18 +449,19 @@ function onScanSuccess(decodedText) {
     );
 
 
-    /* 表示 */
-
     document.getElementById("result")
       .innerHTML =
 
       "<div class='success'>" +
+
       "🟢 商品読み込み成功！" +
+
       "</div>" +
 
       "<br>" +
 
       "商品QR：" +
+
       "<br>" +
 
       decodedText +
@@ -437,14 +471,14 @@ function onScanSuccess(decodedText) {
       "📦 箱QRを読み取ってください";
 
 
-    /* 箱モードへ */
-
     mode = "box";
+
 
     updateMode();
 
 
     setTimeout(
+
       function() {
 
         alreadyScanned = false;
@@ -453,7 +487,9 @@ function onScanSuccess(decodedText) {
           .innerHTML =
 
           "<div class='success'>" +
+
           "🟢 商品読み込み成功！" +
+
           "</div>" +
 
           "<br><br>" +
@@ -461,7 +497,9 @@ function onScanSuccess(decodedText) {
           "📦 箱QRをカメラに映してください";
 
       },
+
       700
+
     );
 
 
@@ -472,7 +510,7 @@ function onScanSuccess(decodedText) {
 
 
   /* =================================
-     ② 通常の1個入れ：箱
+     ② 1個入れ：箱
   ================================= */
 
   if (mode === "box") {
@@ -495,12 +533,15 @@ function onScanSuccess(decodedText) {
       .innerHTML =
 
       "<div class='success'>" +
+
       "🟢 箱読み込み成功！" +
+
       "</div>" +
 
       "<br>" +
 
       "箱QR：" +
+
       "<br>" +
 
       boxQR +
@@ -514,11 +555,15 @@ function onScanSuccess(decodedText) {
 
 
     setTimeout(
+
       function() {
+
 
         productQR = "";
 
+
         mode = "product";
+
 
         updateMode();
 
@@ -537,8 +582,11 @@ function onScanSuccess(decodedText) {
           .style.display =
           "inline-block";
 
+
       },
+
       1500
+
     );
 
 
@@ -568,7 +616,9 @@ function onScanSuccess(decodedText) {
       .innerHTML =
 
       "<div class='success'>" +
+
       "🟢 箱読み込み成功！" +
+
       "</div>" +
 
       "<br>" +
@@ -584,9 +634,13 @@ function onScanSuccess(decodedText) {
 
 
     setTimeout(
+
       function() {
 
-        mode = "bulkProduct";
+
+        mode =
+          "bulkProduct";
+
 
         updateMode();
 
@@ -605,8 +659,11 @@ function onScanSuccess(decodedText) {
           .style.display =
           "inline-block";
 
+
       },
-      1000
+
+      800
+
     );
 
 
@@ -636,7 +693,9 @@ function onScanSuccess(decodedText) {
       .innerHTML =
 
       "<div class='success'>" +
+
       "🟢 商品読み込み成功！" +
+
       "</div>" +
 
       "<br>" +
@@ -648,11 +707,20 @@ function onScanSuccess(decodedText) {
       "📷 次の商品QRを読み取ってください";
 
 
-    stopCamera();
+    /*
+      一括入れでは
+      カメラを停止しない
 
+      そのまま次の商品を
+      読み取れる
+    */
 
     setTimeout(
+
       function() {
+
+        alreadyScanned = false;
+
 
         document.getElementById("result")
           .innerHTML =
@@ -663,13 +731,10 @@ function onScanSuccess(decodedText) {
 
           "📷 次の商品QRを読み取ってください";
 
-
-        document.getElementById("start")
-          .style.display =
-          "inline-block";
-
       },
+
       800
+
     );
 
 
@@ -687,13 +752,11 @@ function onScanSuccess(decodedText) {
 
 function sendToParent(
   value,
-  mode
+  scanMode
 ) {
 
 
-  if (
-    window.opener
-  ) {
+  if (window.opener) {
 
 
     window.opener.postMessage(
@@ -704,7 +767,7 @@ function sendToParent(
 
         value: value,
 
-        mode: mode
+        mode: scanMode
 
       },
 
@@ -728,38 +791,44 @@ function stopCamera() {
   scanning = false;
 
 
-  if (scanner) {
-
-
-    scanner.stop()
-
-      .then(
-        function() {
-
-          try {
-
-            scanner.clear();
-
-          }
-          catch (e) {}
-
-
-          scanner = null;
-
-        }
-      )
-
-      .catch(
-        function(error) {
-
-          console.log(error);
-
-          scanner = null;
-
-        }
-      );
-
+  if (!scanner) {
+    return;
   }
+
+
+  scanner.stop()
+
+    .then(
+
+      function() {
+
+
+        try {
+
+          scanner.clear();
+
+        }
+
+        catch (e) {}
+
+
+        scanner = null;
+
+      }
+
+    )
+
+    .catch(
+
+      function(error) {
+
+        console.log(error);
+
+        scanner = null;
+
+      }
+
+    );
 
 }
 
@@ -770,6 +839,27 @@ function stopCamera() {
 ================================= */
 
 updateMode();
+
+
+/*
+  ページを開いたら
+  自動的にカメラ起動を試す
+
+  iPhone Safariが許可すれば
+  ボタンを押す必要なし
+*/
+
+setTimeout(
+
+  function() {
+
+    startCamera(false);
+
+  },
+
+  300
+
+);
 
 
 </script>
